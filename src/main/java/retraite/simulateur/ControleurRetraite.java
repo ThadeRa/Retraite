@@ -17,9 +17,8 @@ public class ControleurRetraite {
     }
 
     @PostMapping("/simuler")
-    @ResponseBody
     public double simulerRetraite(@RequestBody Adherent adherent) {
-        return ResponseEntity.ok(serviceRetraite.calculerEpargneRetraite(adherent));
+        return serviceRetraite.calculerEpargneRetraite(adherent);
     }
 
 }
