@@ -26,9 +26,9 @@ public class ControleurRetraite {
         return ResponseEntity.ok("POST accepted");
     }
 
-    @GetMapping("/example")
-    public ResponseEntity<String> handleGet() {
-        return ResponseEntity.ok("GET accepted");
+    @RequestMapping(value = "/example", method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity<String> handleRequest() {
+        return ResponseEntity.ok("Request accepted");
     }
 
     
