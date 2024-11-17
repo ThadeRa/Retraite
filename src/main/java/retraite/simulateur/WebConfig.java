@@ -12,7 +12,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         // Autoriser toutes les ressources de l'application à accepter des requêtes de votre front-end
         registry.addMapping("/**")  // Remplace "/**" par le chemin spécifique si nécessaire
-                .allowedOrigins("http://localhost:3000") // Remplacez par l'URL de votre front-end (local ou en production)
+                .allowedOrigins("https://yellow-forest-0a08bb403.5.azurestaticapps.net") // Remplacez par l'URL de votre front-end (local ou en production)
                 .allowedMethods("GET", "POST", "PUT", "DELETE") // Liste des méthodes HTTP autorisées
                 .allowedHeaders("*") // Autoriser tous les headers
                 .allowCredentials(true); // Autoriser l'envoi de cookies si nécessaire
