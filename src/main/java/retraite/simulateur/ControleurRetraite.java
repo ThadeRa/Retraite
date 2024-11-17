@@ -21,4 +21,10 @@ public class ControleurRetraite {
         return serviceRetraite.calculerEpargneRetraite(adherent);
     }
 
+@PostMapping("/example")
+public ResponseEntity<String> handlePost() {
+    return ResponseEntity.ok("POST accepted");
+}
+
+    
 }
