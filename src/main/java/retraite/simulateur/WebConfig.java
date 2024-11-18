@@ -1,4 +1,4 @@
-package com.votrepackage.config;
+package retraite.simulateur;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
