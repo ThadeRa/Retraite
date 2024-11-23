@@ -223,6 +223,8 @@
         <h3>Résultat</h3>
         <p>Vos économies à la retraite seront de : <span id="totalEpargne"></span> €</p>
     </div>
+
+
 </div>
 
 <div class="container">
@@ -278,6 +280,7 @@
 
         formData.enfants = childrenInfo;
         console.log(formData);
+
         fetch("/simuler", {
             method: "POST",
             headers: {
@@ -288,8 +291,31 @@
             .then(response => response.json())
             .then(data => {
                 console.log(data);
-                document.getElementById("totalEpargne").innerText = data;
-                document.getElementById("result").style.display = "block";
+
+                // Affichage des résultats
+                const resultDiv = document.getElementById("result");
+                const totalEpargneElem = document.getElementById("totalEpargne");
+
+                if (data.ageLegalAtteint === "Oui") {
+                    // Âge légal atteint
+                    totalEpargneElem.innerText = `${data.epargne}`;
+                    resultDiv.classList.remove("alert-warning");
+                    resultDiv.classList.add("alert-success");
+                    resultDiv.innerHTML = `
+                        <h3>Résultat</h3>
+                        <p>Vos économies à la retraite seront de : <span id="totalEpargne">${data.epargne}</span> €</p>
+                    `;
+                } else {
+                    // Âge légal NON atteint
+                    resultDiv.classList.remove("alert-success");
+                    resultDiv.classList.add("alert-warning");
+                    resultDiv.innerHTML = `
+                        <h3>Attention</h3>
+                        <p>Vous n'avez pas encore atteint l'âge légal de la retraite. Vos économies estimées seraient de : <span id="totalEpargne">${data.epargne}</span> €.</p>
+                    `;
+                }
+
+                resultDiv.style.display = "block";
             })
             .catch(error => console.error("Erreur lors de la simulation:", error));
     });

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 public class ControleurRetraite {
 
     @Autowired
-    private ServiceRetraite serviceRetraite;
+    private ServiceRetraiteGeneral serviceRetraite;
 
     @GetMapping
     public String index() {
@@ -18,7 +18,7 @@ public class ControleurRetraite {
 
     @PostMapping("/simuler")
     @ResponseBody
-    public double simulerRetraite(@RequestBody Adherent adherent) {
+    public ResultatRetraite simulerRetraite(@RequestBody Adherent adherent) {
         return serviceRetraite.calculerEpargneRetraite(adherent);
     }
 

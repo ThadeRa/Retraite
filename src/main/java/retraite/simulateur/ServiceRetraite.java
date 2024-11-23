@@ -58,8 +58,7 @@ public class ServiceRetraite {
         // Arrondir le montant final
         BigDecimal epargneArrondie = BigDecimal.valueOf(epargneBrute).setScale(2, RoundingMode.HALF_UP);
         System.out.println(epargneArrondie);
-      //  return epargneArrondie.doubleValue();
-        return serviceRetraiteGeneral.calculerEpargneRetraite(adherent);
+        return epargneArrondie.doubleValue();
     }
 
     public int calculerTrimestresRequis(Date dateNaissance) {

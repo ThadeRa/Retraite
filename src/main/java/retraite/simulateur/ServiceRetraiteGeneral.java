@@ -1,17 +1,30 @@
 package retraite.simulateur;
 
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Period;
+import java.time.ZoneId;
 import java.util.Date;
 
-// TODO bools handicapé, carrierelongue, 0TrimsManquant, trimEnfants, trimsHypothétique
 
+@Service
 public class ServiceRetraiteGeneral {
     ServiceRetraiteEnfant serviceRetraiteEnfant = new ServiceRetraiteEnfant();
     ServiceSurcote serviceSurcote = new ServiceSurcote();
+    ServiceHandicap serviceHandicap = new ServiceHandicap();
+    ServiceCarriereLongue serviceCarriereLongue = new ServiceCarriereLongue();
 
     float SAM = 0;
+    float pension;
+    float taux;
+    int trimestresValides;
+    int trimestresRequis;
+    int ageMinimum;
+    Date dateMinimale;
+    int ageAuDepart;
 
     // Situation de l'utilisateur :
     boolean handicap = false;
@@ -19,12 +32,13 @@ public class ServiceRetraiteGeneral {
 
     int nbTrimestresValidesTOTAL = 0;
 
-    public double calculerEpargneRetraite(Adherent adherent) {
+    public ResultatRetraite calculerEpargneRetraite(Adherent adherent) {
+        calculerTrimestresValidesTotal(adherent);
         setSituation(adherent);
         SAM = adherent.getSAM();
         int nbTrimestresManquants = calculerTrimestresManquants(adherent);
         float taux = calculerTaux(adherent, nbTrimestresManquants);
-        float fractionTrim = calculerFractionTrimestres(adherent, nbTrimestresManquants);
+        float fractionTrim = calculerFractionTrimestres(adherent);
 
         // Calcul de la pension brute
         float epargneBrute = calculerPension(adherent, taux, fractionTrim);
@@ -32,12 +46,22 @@ public class ServiceRetraiteGeneral {
         // Arrondir le montant final
         BigDecimal epargneArrondie = BigDecimal.valueOf(epargneBrute).setScale(2, RoundingMode.HALF_UP);
         System.out.println(epargneArrondie);
-        return epargneArrondie.doubleValue();
+
+        return syntheseRetraite(adherent,
+                epargneArrondie.doubleValue(),
+                taux,
+                nbTrimestresValidesTOTAL
+        );
     }
 
-    public int calculerTrimestresRequis(Date dateNaissance) {
+    public int calculerTrimestresRequis(Date dateNaissance, Date dateRetraiteSouhaitee) {
         // Convertir Date en LocalDate pour faciliter les comparaisons
         LocalDate dateNaissanceLocal = new java.sql.Date(dateNaissance.getTime()).toLocalDate();
+
+        //HANDICAP-
+        if (handicap) {
+            return serviceHandicap.calculerTrimestresRequisHandicap(dateNaissance, dateRetraiteSouhaitee);
+        }
 
         if (dateNaissanceLocal.isBefore(LocalDate.of(1960, 1, 1))) {
             return 167; // 1960 et avant
@@ -56,14 +80,15 @@ public class ServiceRetraiteGeneral {
         }
     }
 
-    public int calculerTrimestresHypothetiques(Adherent adherent){
+    public int calculerTrimestresHypothetiques(Adherent adherent) {
         int trimestresHypo = calculerTrimestresEntreDates(adherent.getDateSimulation(), adherent.getDateRetraiteSouhait());
         return trimestresHypo;
     }
 
     public int calculerTrimestresManquants(Adherent adherent) {
-        int nbTrimValideTotal = calculerTrimestresValidesTotal(adherent);
-        int nbTrimRequis = calculerTrimestresRequis(adherent.getDateNaissance()); // TODO variant carrierelongue et handicap
+        int nbTrimValideTotal = nbTrimestresValidesTOTAL;
+        int nbTrimRequis = 0;
+        nbTrimRequis = calculerTrimestresRequis(adherent.getDateNaissance(), adherent.getDateRetraiteSouhait());
         return Math.max(nbTrimRequis - nbTrimValideTotal, 0);
     }
 
@@ -71,7 +96,7 @@ public class ServiceRetraiteGeneral {
         int trimValides = adherent.getTrimValide();
         int trimHandicap = adherent.getTrimHandicap();
         int trimEnfant = serviceRetraiteEnfant.calculerTrimestresParEnfant(adherent);
-        int trimHypothetiques = calculerTrimestresHypothetiques(adherent); // TODO trimHypothetiques
+        int trimHypothetiques = calculerTrimestresHypothetiques(adherent); // TODO trimHypothetiques, selon date de départ, en rajouter
         nbTrimestresValidesTOTAL = trimValides + trimHandicap + trimEnfant + trimHypothetiques;
         return nbTrimestresValidesTOTAL;
     }
@@ -130,7 +155,8 @@ public class ServiceRetraiteGeneral {
         int nbTrimestresManquantsMax = 20; // Limite à 20 trimestres pour la décote
         nbTrimestresManquantsPourDecote = Math.min(nbTrimestresManquantsMax, nbTrimestresManquantsPourDecote);
         float taux;
-        if (adherent.getTrimHandicap() > 0) {
+        // HANDICAP-
+        if (handicap) {
             taux = tauxPlein;
         } else {
             switch (adherent.getMethodeTaux()) {
@@ -153,9 +179,9 @@ public class ServiceRetraiteGeneral {
         return taux;
     }
 
-    public float calculerFractionTrimestres(Adherent adherent, int nbTrimestresManquants) {
+    public float calculerFractionTrimestres(Adherent adherent) {
         int nbTrimestresRequis = 0;
-        nbTrimestresRequis = calculerTrimestresRequis(adherent.getDateNaissance());
+        nbTrimestresRequis = calculerTrimestresRequis(adherent.getDateNaissance(), adherent.getDateRetraiteSouhait());
         int nbTrimestresValides = nbTrimestresValidesTOTAL;
         float fraction = (float) nbTrimestresValides / nbTrimestresRequis;
         fraction = Math.min(1, fraction);
@@ -165,28 +191,75 @@ public class ServiceRetraiteGeneral {
     public float calculerPension(Adherent adherent, float taux, float fractionTrim) {
         float epargneBrute = SAM * taux * fractionTrim;
 
-        float surcoteTrimSupplementaires = serviceSurcote.calculerSurcote(adherent, calculerTrimestresRequis(adherent.getDateNaissance()));
+        // Ajouter la surcote pour trimestres cotisés après âge légal
+        int trimRequis = calculerTrimestresRequis(adherent.getDateNaissance(), adherent.getDateRetraiteSouhait());
+        float surcoteTrimSupplementaires = serviceSurcote.calculerSurcote(adherent, trimRequis);
         epargneBrute = epargneBrute * surcoteTrimSupplementaires;
 
         // Ajouter la majoration pour les enfants si applicable
         if (adherent.getNbEnfants() >= 3) {
             epargneBrute *= 1.10F; // Majoration de 10% pour 3 enfants ou plus
         }
+
         return epargneBrute;
     }
 
 
-    public void setSituation(Adherent adherent){
+    public void setSituation(Adherent adherent) {
         if (adherent.getCarriereLongue().equals("16")
-        || adherent.getCarriereLongue().equals("18")
+                || adherent.getCarriereLongue().equals("18")
                 || adherent.getCarriereLongue().equals("20")
-                || adherent.getCarriereLongue().equals("21")){
-            carrierelongue=true;
-        }
-        if (adherent.getTrimHandicap()>0){
-            handicap=true;
+                || adherent.getCarriereLongue().equals("21")) {
+            carrierelongue = true;
+        } else {
+            carrierelongue = false;
         }
 
+        if (adherent.getTrimHandicap() > 0) {
+            handicap = true;
+        } else {
+            handicap = false;
+        }
 
+    }
+
+    public ResultatRetraite syntheseRetraite(Adherent adherent, double epargne, float taux, int trimestresValides) {
+        float SAM = adherent.getSAM();
+        int trimestresRequis = calculerTrimestresRequis(adherent.getDateNaissance(), adherent.getDateRetraiteSouhait());
+
+        LocalDate dateMinimale;
+        if (handicap) {
+            dateMinimale = serviceHandicap.calculerAgeDepartHandicap(adherent.getDateNaissance(), trimestresValides);
+        } else {
+            dateMinimale = serviceCarriereLongue.calculerAgeDepart(adherent.getDateNaissance(), adherent.getCarriereLongue());
+        }
+
+        LocalDate localDateNaissance = adherent.getDateNaissance().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        Period anneeMoisMinim = Period.between(localDateNaissance, dateMinimale);
+        int yearsMinim = anneeMoisMinim.getYears();
+        int monthsMinim = anneeMoisMinim.getMonths();
+        String ageMinimum = yearsMinim + " ans et " + monthsMinim + " mois";
+
+        LocalDate localDateDepart = adherent.getDateRetraiteSouhait().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        Period anneeMoisDepart = Period.between(localDateNaissance, localDateDepart);
+        int yearsDepart = anneeMoisDepart.getYears();
+        int monthsDepart = anneeMoisDepart.getMonths();
+        String ageAuDepart = yearsDepart + " ans et " + monthsDepart + " mois";
+
+        String ageLegalAtteint = "Non";
+        if (yearsDepart >= yearsMinim && monthsDepart >= monthsMinim){
+            ageLegalAtteint = "Oui";
+        }
+
+        return new ResultatRetraite(
+                epargne,
+                SAM,
+                taux,
+                trimestresValides,
+                trimestresRequis,
+                ageMinimum,
+                dateMinimale,
+                ageAuDepart,
+                ageLegalAtteint);
     }
 }
