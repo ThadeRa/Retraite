@@ -11,6 +11,7 @@ import java.util.List;
 
 @Service
 public class ServiceRetraite {
+    private ServiceRetraiteGeneral serviceRetraiteGeneral = new ServiceRetraiteGeneral();
 // DONE max 1 pour la fraction des trimestres
 // DONE décote du taux
 // DONE Rajouter date de retraite souhaitée
@@ -57,7 +58,8 @@ public class ServiceRetraite {
         // Arrondir le montant final
         BigDecimal epargneArrondie = BigDecimal.valueOf(epargneBrute).setScale(2, RoundingMode.HALF_UP);
         System.out.println(epargneArrondie);
-        return epargneArrondie.doubleValue();
+      //  return epargneArrondie.doubleValue();
+        return serviceRetraiteGeneral.calculerEpargneRetraite(adherent);
     }
 
     public int calculerTrimestresRequis(Date dateNaissance) {
@@ -191,9 +193,6 @@ public class ServiceRetraite {
 
         // Ajouter les trimestres pour les enfants (supposons qu'une méthode existe pour ça)
         nbTrimValide += calculerTrimestresParEnfant(adherent);
-
-        // Ajouter d'autres critères spécifiques si nécessaire (par exemple, trimestres de handicap)
-        // nbTrimValide += adherent.getTrimHandicap();
 
         // Calcul final des trimestres manquants
         return Math.max(trimestresRequis - nbTrimValide, 0);

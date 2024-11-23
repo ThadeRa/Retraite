@@ -14,7 +14,7 @@ public class Adherent {
     private int nbEnfants;
     private Date dateRetraiteSouhait = new Date();
     @JsonProperty("SAM")
-    private int SAM;
+    private float SAM;
     private Boolean trimestrePartage;
     private int nbEnfantsPartages;
     private int trimValide = 0;
@@ -106,11 +106,11 @@ public class Adherent {
         this.dateRetraiteSouhait = dateRetraiteSouhait;
     }
 
-    public int getSAM() {
+    public float getSAM() {
         return SAM;
     }
 
-    public void setSAM(int SAM) {
+    public void setSAM(float SAM) {
         this.SAM = SAM;
     }
 
