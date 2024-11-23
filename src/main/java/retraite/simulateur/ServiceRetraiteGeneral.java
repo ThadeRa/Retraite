@@ -17,19 +17,11 @@ public class ServiceRetraiteGeneral {
     ServiceHandicap serviceHandicap = new ServiceHandicap();
     ServiceCarriereLongue serviceCarriereLongue = new ServiceCarriereLongue();
 
-    float SAM = 0;
-    float pension;
-    float taux;
-    int trimestresValides;
-    int trimestresRequis;
-    int ageMinimum;
-    Date dateMinimale;
-    int ageAuDepart;
-
     // Situation de l'utilisateur :
     boolean handicap = false;
     boolean carrierelongue = false;
 
+    float SAM = 0;
     int nbTrimestresValidesTOTAL = 0;
 
     public ResultatRetraite calculerEpargneRetraite(Adherent adherent) {
@@ -37,7 +29,8 @@ public class ServiceRetraiteGeneral {
         setSituation(adherent);
         SAM = adherent.getSAM();
         int nbTrimestresManquants = calculerTrimestresManquants(adherent);
-        float taux = calculerTaux(adherent, nbTrimestresManquants);
+        int nbTrimestresManquantsAge = calculerTrimestresManquantsAge(adherent);
+        float taux = calculerTaux(adherent, nbTrimestresManquants + nbTrimestresManquantsAge);
         float fractionTrim = calculerFractionTrimestres(adherent);
 
         // Calcul de la pension brute
@@ -90,6 +83,36 @@ public class ServiceRetraiteGeneral {
         int nbTrimRequis = 0;
         nbTrimRequis = calculerTrimestresRequis(adherent.getDateNaissance(), adherent.getDateRetraiteSouhait());
         return Math.max(nbTrimRequis - nbTrimValideTotal, 0);
+    }
+
+    public int calculerTrimestresManquantsAge(Adherent adherent) {
+        LocalDate ageLegal = serviceCarriereLongue.calculerAgeDepart(adherent.getDateNaissance(), adherent.getCarriereLongue()); // Âge légal calculé
+        LocalDate dateSouhaitee = new java.sql.Date(adherent.getDateRetraiteSouhait().getTime()).toLocalDate();
+        // ON SOUHAITE ARRONDIR AU TRIMESTRE SUPERIEUR
+        // Identifier le mois
+//        int mois = dateSouhaitee.getMonthValue();
+//        // Calculer le début du prochain trimestre
+//        int moisProchainTrimestre;
+//        if (mois <= 3) { // Janvier à Mars -> Trimestre 2
+//            moisProchainTrimestre = 4;
+//        } else if (mois <= 6) { // Avril à Juin -> Trimestre 3
+//            moisProchainTrimestre = 7;
+//        } else if (mois <= 9) { // Juillet à Septembre -> Trimestre 4
+//            moisProchainTrimestre = 10;
+//        } else { // Octobre à Décembre -> Trimestre 1 de l'année suivante
+//            moisProchainTrimestre = 1;
+//            dateSouhaitee = LocalDate.of(dateSouhaitee.getYear() + 1, moisProchainTrimestre, 1);
+//        }
+//        dateSouhaitee = LocalDate.of(dateSouhaitee.getYear(), moisProchainTrimestre, 1);
+
+
+        if (!dateSouhaitee.isBefore(ageLegal)) {
+            return 0; // Pas de décote si la date de départ est à l'âge légal ou après
+        }
+
+        // Calculer la différence en trimestres avant l'âge légal
+        int nbTrimestresManquantsAge = calculerTrimestresEntreDates(adherent.getDateRetraiteSouhait(), Date.from(ageLegal.atStartOfDay(ZoneId.systemDefault()).toInstant())); // S'assurer que la décote ne tombe pas en dessous de 0
+        return nbTrimestresManquantsAge;
     }
 
     public int calculerTrimestresValidesTotal(Adherent adherent) {
@@ -247,7 +270,7 @@ public class ServiceRetraiteGeneral {
         String ageAuDepart = yearsDepart + " ans et " + monthsDepart + " mois";
 
         String ageLegalAtteint = "Non";
-        if (yearsDepart >= yearsMinim && monthsDepart >= monthsMinim){
+        if (yearsDepart >= yearsMinim && monthsDepart >= monthsMinim) {
             ageLegalAtteint = "Oui";
         }
 
