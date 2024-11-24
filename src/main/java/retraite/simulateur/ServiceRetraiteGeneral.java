@@ -270,7 +270,7 @@ public class ServiceRetraiteGeneral {
         String ageAuDepart = yearsDepart + " ans et " + monthsDepart + " mois";
 
         String ageLegalAtteint = "Non";
-        if (yearsDepart >= yearsMinim && monthsDepart >= monthsMinim) {
+        if (!localDateDepart.isBefore(dateMinimale)) {
             ageLegalAtteint = "Oui";
         }
 
